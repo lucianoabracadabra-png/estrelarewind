@@ -8,9 +8,21 @@
 </head>
 <body>
     <div class="controls">
-        <button class="btn active" id="counterBtn">Bancada</button>
-        <button class="btn" id="galleryBtn">Galeria</button>
-        <button class="btn" id="starBtn">Inove</button>
+        <div class="controls-top">
+            <button class="btn active" id="counterBtn">Bancada</button>
+            <button class="btn" id="galleryBtn">Galeria</button>
+        </div>
+        <div class="controls-bottom">
+            <div class="toggle-container">
+                <button class="toggle-btn toggle-left active" id="starBtn">
+                    <span class="toggle-text">Inove</span>
+                </button>
+                <button class="toggle-btn toggle-right" id="starBtnRight">
+                    <span class="toggle-text">Estrela</span>
+                </button>
+                <div class="toggle-slider"></div>
+            </div>
+        </div>
     </div>
 
     <div class="counter-mode active" id="counterMode">

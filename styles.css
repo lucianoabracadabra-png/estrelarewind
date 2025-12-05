@@ -26,7 +26,18 @@ body {
     right: 20px;
     z-index: 1000;
     display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.controls-top {
+    display: flex;
     gap: 10px;
+}
+
+.controls-bottom {
+    display: flex;
+    justify-content: flex-end;
 }
 
 .btn {
@@ -47,6 +58,104 @@ body {
 
 .btn.active {
     background: #333;
+    color: white;
+}
+
+.btn.toggle {
+    padding: 12px 32px;
+    background: white;
+    border: 3px solid #333;
+    font-size: 16px;
+}
+
+.btn.toggle:hover {
+    transform: translate(2px, 2px) scale(1.05);
+}
+
+.btn.toggle.active {
+    background: #FF6B6B;
+    color: white;
+    border-color: #C92A2A;
+    box-shadow: 5px 5px 0 #C92A2A;
+}
+
+/* ============================================
+   TOGGLE SLIDER
+   ============================================ */
+.toggle-container {
+    position: relative;
+    display: inline-flex;
+    background: white;
+    border: 3px solid #333;
+    box-shadow: 3px 3px 0 #333;
+    border-radius: 0;
+    overflow: hidden;
+    transition: all 0.2s;
+    height: 44px;
+}
+
+.toggle-container:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 #333;
+}
+
+.toggle-btn {
+    padding: 0 24px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    font-size: 14px;
+    position: relative;
+    z-index: 2;
+    color: #333;
+    transition: color 0.3s ease;
+    flex: 1;
+    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.toggle-btn:hover {
+    color: #333;
+}
+
+.toggle-text {
+    position: relative;
+    z-index: 3;
+}
+
+.toggle-left {
+    border-right: 2px solid #333;
+}
+
+.toggle-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: calc(50% - 8px);
+    background: #4ECDC4;
+    z-index: 1;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: none;
+}
+
+.toggle-left.active ~ .toggle-slider {
+    background: #4ECDC4;
+    left: 0;
+}
+
+.toggle-right.active ~ .toggle-slider {
+    background: #D4AF37;
+    left: calc(50% - 8px);
+    width: calc(50% + 8px);
+}
+
+.toggle-btn.active .toggle-text {
     color: white;
 }
 
