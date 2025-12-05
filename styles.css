@@ -1,0 +1,330 @@
+/* ============================================
+   ESTILOS GERAIS
+   ============================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Courier New', monospace;
+    background-image: url('fotos/bg.jpeg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* ============================================
+   CONTROLES (BOTÕES)
+   ============================================ */
+.controls {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 12px 24px;
+    background: white;
+    border: 2px solid #333;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    box-shadow: 3px 3px 0 #333;
+    transition: all 0.2s;
+}
+
+.btn:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 #333;
+}
+
+.btn.active {
+    background: #333;
+    color: white;
+}
+
+/* ============================================
+   MODO GALERIA
+   ============================================ */
+.gallery-mode {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 600;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 40px 20px;
+    pointer-events: none;
+}
+
+.gallery-mode.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.gallery-grid {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.gallery-grid .polaroid {
+    width: 280px;
+    height: auto;
+    aspect-ratio: 880 / 1056;
+    opacity: 0.5;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: auto;
+}
+
+.gallery-grid .polaroid.current {
+    width: 440px;
+    opacity: 1;
+    transform: scale(1);
+}
+
+.gallery-grid .polaroid:hover {
+    cursor: pointer;
+}
+
+/* ============================================
+   MODO BANCADA
+   ============================================ */
+.counter-mode {
+    display: none;
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    z-index: 500;
+}
+
+.counter-mode.active {
+    display: block;
+}
+
+.counter-mode.detail-view .scattered-polaroid {
+    pointer-events: none;
+}
+
+.counter-mode:not(.detail-view) .center-polaroid {
+    display: none;
+}
+
+.counter-mode:not(.detail-view) .nav-btn,
+.counter-mode:not(.detail-view) .counter {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.counter-mode:not(.detail-view) .scattered-polaroid {
+    pointer-events: all;
+    opacity: 1;
+}
+
+.scattered-polaroid {
+    pointer-events: auto !important;
+}
+
+.counter-surface {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ============================================
+   ESTILO POLAROID GERAL
+   ============================================ */
+.polaroid {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.1);
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    cursor: pointer;
+    border-radius: 2px;
+    overflow: hidden;
+    background: white;
+}
+
+.polaroid:hover {
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25), 0 12px 32px rgba(0,0,0,0.2);
+}
+
+.polaroid-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* ============================================
+   POLAROIDS ESPALHADOS (BANCADA)
+   ============================================ */
+.scattered-polaroid {
+    position: absolute;
+    width: 220px;
+    height: 264px;
+    opacity: 1;
+    transition: none;
+    cursor: pointer;
+}
+
+.scattered-polaroid.animate-position {
+    transition: left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+                top 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+                transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+                opacity 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.scattered-polaroid.hide-for-detail {
+    opacity: 0;
+    pointer-events: none !important;
+    visibility: hidden;
+}
+
+/* ============================================
+   POLAROID CENTRAL (BANCADA DETALHE)
+   ============================================ */
+.center-polaroid {
+    position: relative;
+    width: 440px;
+    height: 528px;
+    z-index: 50;
+    animation: slideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: pointer;
+}
+
+.center-polaroid.closing {
+    animation: slideOut 0.6s cubic-bezier(0.68, -0.55, 0.265, 1) forwards;
+}
+
+@keyframes slideOut {
+    from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.8) translateY(50px);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8) translateY(50px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* ============================================
+   NAVEGAÇÃO
+   ============================================ */
+.nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: white;
+    border: 3px solid #333;
+    width: 60px;
+    height: 60px;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 200;
+    box-shadow: 3px 3px 0 #333;
+    transition: all 0.3s;
+    font-weight: bold;
+}
+
+.nav-btn:hover {
+    transform: translateY(-50%) scale(1.1);
+}
+
+.nav-btn.left {
+    left: 40px;
+}
+
+.nav-btn.right {
+    right: 40px;
+}
+
+/* ============================================
+   CONTADOR
+   ============================================ */
+.counter {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 10px 20px;
+    border: 2px solid #333;
+    font-weight: bold;
+    box-shadow: 3px 3px 0 #333;
+    z-index: 200;
+    transition: all 0.3s;
+}
+
+/* ============================================
+   RESPONSIVO
+   ============================================ */
+@media (max-width: 768px) {
+    .center-polaroid {
+        width: 300px;
+        height: 360px;
+    }
+    
+    .scattered-polaroid {
+        width: 150px;
+        height: 180px;
+    }
+
+    .nav-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+
+    .controls {
+        top: 10px;
+        right: 10px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        font-size: 12px;
+    }
+
+    .gallery-grid {
+        gap: 20px;
+    }
+
+    .gallery-grid .polaroid {
+        width: 200px;
+    }
+
+    .gallery-grid .polaroid.current {
+        width: 300px;
+    }
+}
