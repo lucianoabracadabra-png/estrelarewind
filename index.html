@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minha Galeria</title>
+    <style>
+        /* ESTILO GERAL (FUNDO E TEXTO) */
+        body {
+            margin: 0;
+            padding: 40px;
+            background-color: #121212; /* Fundo escuro elegante */
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #888;
+        }
+
+        /* A GRADE DA GALERIA (RESPONSIVA) */
+        .gallery-container {
+            display: grid;
+            /* Cria colunas automaticamente dependendo do tamanho da tela */
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* O CARTÃO DA IMAGEM */
+        .photo-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+            aspect-ratio: 1 / 1; /* Mantém as fotos quadradas na grade */
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            background-color: #1e1e1e; /* Cor de fundo enquanto carrega */
+        }
+
+        .photo-card:hover {
+            transform: scale(1.02); /* Leve zoom ao passar o mouse */
+            z-index: 2;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        .photo-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Corta a imagem para preencher o quadrado */
+            display: block;
+            opacity: 0; /* Começa invisível para animar entrada */
+            animation: fadeIn 0.5s forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        /* MODAL (PARA VER A FOTO GRANDE) */
+        #modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+            cursor: zoom-out;
+        }
+
+        #modal img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 4px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Galeria de Fotos</h1>
+        <p>Mostrando arquivos da pasta /fotos</p>
+    </header>
+
+    <div class="gallery-container" id="gallery">
+        <!-- As imagens serão inseridas aqui automaticamente pelo Javascript -->
+    </div>
+
+    <!-- Modal para ver imagem grande -->
+    <div id="modal" onclick="this.style.display='none'">
+        <img id="modal-img" src="" alt="">
+    </div>
+
+    <script>
+        const gallery = document.getElementById('gallery');
+        const modal = document.getElementById('modal');
+        const modalImg = document.getElementById('modal-img');
+
+        // CONFIGURAÇÃO
+        // Quantas fotos tentar carregar? Coloque um número maior que o total que você tem.
+        // O código vai esconder as que não existirem.
+        const maxPhotos = 50; 
+
+        for (let i = 1; i <= maxPhotos; i++) {
+            // Cria o elemento da imagem
+            const container = document.createElement('div');
+            container.className = 'photo-card';
+
+            const img = document.createElement('img');
+            img.src = `fotos/${i}.jpg`; // Tenta carregar 1.jpg, 2.jpg...
+            
+            // TRUQUE IMPORTANTE:
+            // Se a imagem não carregar (arquivo não existe), removemos o quadrado da tela.
+            img.onerror = function() {
+                container.remove();
+            };
+
+            // Ao clicar, abre o modal
+            img.onclick = function() {
+                modal.style.display = 'flex';
+                modalImg.src = this.src;
+            };
+
+            container.appendChild(img);
+            gallery.appendChild(container);
+        }
+    </script>
+
+</body>
+</html>
