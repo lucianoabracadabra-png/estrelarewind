@@ -148,11 +148,11 @@ counterBtn.addEventListener('click', () => {
 });
 
 galleryBtn.addEventListener('click', () => {
+    counterMode.classList.remove('active');
     galleryMode.classList.add('active');
     galleryBtn.classList.add('active');
     counterBtn.classList.remove('active');
     starBtn.classList.remove('active');
-    // Não removemos counterMode.active para manter o fundo visível
     updateGalleryView();
     updateScatteredVisibility();
 });
@@ -161,11 +161,13 @@ starBtn.addEventListener('click', () => {
     // Toggle do modo estrela
     isStarMode = !isStarMode;
     
-    // Atualiza visual do botão
+    // Atualiza o título do botão
     if (isStarMode) {
         starBtn.classList.add('active');
+        starBtn.textContent = 'Estrela';
     } else {
         starBtn.classList.remove('active');
+        starBtn.textContent = 'Inove';
     }
     
     // Recarrega as fotos com o novo prefixo
