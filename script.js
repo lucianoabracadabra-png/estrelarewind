@@ -5,7 +5,9 @@ const NUM_PHOTOS = 8;
 let currentIndex = -1;
 let photos = [];
 let photoPositions = [];
+let starPhotoPositions = []; // Posições diferentes para modo estrela
 let isAnimating = false;
+let isStarMode = false; // Toggle para ambiente da estrela
 
 // Gerar array de fotos
 for (let i = 1; i <= NUM_PHOTOS; i++) {
@@ -21,6 +23,7 @@ const counterSurface = document.getElementById('counterSurface');
 const galleryGrid = document.getElementById('galleryGrid');
 const counterBtn = document.getElementById('counterBtn');
 const galleryBtn = document.getElementById('galleryBtn');
+const starBtn = document.getElementById('starBtn');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const counter = document.getElementById('counter');
@@ -39,6 +42,17 @@ function generatePositions() {
         
         return { x, y, rotation };
     });
+
+    // Gera posições DIFERENTES para o modo estrela
+    starPhotoPositions = photos.map((photo, idx) => {
+        const angle = (idx / photos.length) * Math.PI * 2 + Math.random() * 0.5;
+        const distance = 300 + Math.random() * 250;
+        const x = Math.cos(angle) * distance;
+        const y = Math.sin(angle) * distance;
+        const rotation = -25 + Math.random() * 50;
+        
+        return { x, y, rotation };
+    });
 }
 
 // ============================================
@@ -48,14 +62,20 @@ function initScatteredPhotos() {
     // Limpa a bancada
     counterSurface.innerHTML = '';
     
+    // Define qual array de posições usar
+    const positions = isStarMode ? starPhotoPositions : photoPositions;
+    
     // Cria TODAS as fotos na bancada de uma vez só
     photos.forEach((photo, idx) => {
+        // Adiciona prefixo "e" se estiver em modo estrela
+        const photoPath = isStarMode ? `fotos/e${idx + 1}.jpg` : photo;
+        
         const polaroid = document.createElement('div');
         polaroid.className = 'polaroid scattered-polaroid';
-        polaroid.innerHTML = `<img src="${photo}" alt="Foto ${idx + 1}" class="polaroid-img">`;
+        polaroid.innerHTML = `<img src="${photoPath}" alt="Foto ${idx + 1}" class="polaroid-img">`;
         polaroid.dataset.index = idx; // Identificador importante
         
-        const pos = photoPositions[idx];
+        const pos = positions[idx];
         
         // Posicionamento absoluto baseado no centro
         polaroid.style.left = `calc(50% + ${pos.x}px)`;
@@ -123,6 +143,7 @@ counterBtn.addEventListener('click', () => {
     galleryMode.classList.remove('active');
     counterBtn.classList.add('active');
     galleryBtn.classList.remove('active');
+    starBtn.classList.remove('active');
     updateScatteredVisibility();
 });
 
@@ -130,9 +151,32 @@ galleryBtn.addEventListener('click', () => {
     galleryMode.classList.add('active');
     galleryBtn.classList.add('active');
     counterBtn.classList.remove('active');
+    starBtn.classList.remove('active');
     // Não removemos counterMode.active para manter o fundo visível
     updateGalleryView();
     updateScatteredVisibility();
+});
+
+starBtn.addEventListener('click', () => {
+    // Toggle do modo estrela
+    isStarMode = !isStarMode;
+    
+    // Atualiza visual do botão
+    if (isStarMode) {
+        starBtn.classList.add('active');
+    } else {
+        starBtn.classList.remove('active');
+    }
+    
+    // Recarrega as fotos com o novo prefixo
+    if (counterMode.classList.contains('active')) {
+        initScatteredPhotos();
+        updateScatteredVisibility();
+    } else if (galleryMode.classList.contains('active')) {
+        currentIndex = -1;
+        updateGalleryView();
+        updateScatteredVisibility();
+    }
 });
 
 // ============================================
@@ -154,7 +198,9 @@ function updateGalleryView() {
     const createGalleryCard = (index, type) => {
         const div = document.createElement('div');
         div.className = `polaroid ${type}`;
-        div.innerHTML = `<img src="${photos[index]}" class="polaroid-img">`;
+        // Adiciona prefixo "e" se estiver em modo estrela
+        const photoPath = isStarMode ? `fotos/e${index + 1}.jpg` : photos[index];
+        div.innerHTML = `<img src="${photoPath}" class="polaroid-img">`;
         div.addEventListener('click', () => {
             if(type === 'current') {
                 counterBtn.click(); // Vai para bancada
@@ -180,7 +226,13 @@ function openDetail(idx) {
     isAnimating = true;
 
     currentIndex = idx;
-    const pos = photoPositions[idx];
+    
+    // Define qual array de posições usar
+    const positions = isStarMode ? starPhotoPositions : photoPositions;
+    const pos = positions[idx];
+    
+    // Adiciona prefixo "e" se estiver em modo estrela
+    const photoPath = isStarMode ? `fotos/e${idx + 1}.jpg` : photos[idx];
 
     // 1. Esconde a carta da bancada
     updateScatteredVisibility();
@@ -188,7 +240,7 @@ function openDetail(idx) {
     // 2. Cria a carta central
     const centerCard = document.createElement('div');
     centerCard.className = 'polaroid center-polaroid';
-    centerCard.innerHTML = `<img src="${photos[idx]}" alt="Foto central" class="polaroid-img">`;
+    centerCard.innerHTML = `<img src="${photoPath}" alt="Foto central" class="polaroid-img">`;
     centerCard.dataset.index = idx;
     centerCard.addEventListener('click', closeDetail);
 
@@ -235,7 +287,10 @@ function closeDetail() {
 
     const centerCard = document.querySelector('.center-polaroid');
     const closingIndex = currentIndex;
-    const pos = photoPositions[closingIndex]; // Pega a posição de destino
+    
+    // Define qual array de posições usar
+    const positions = isStarMode ? starPhotoPositions : photoPositions;
+    const pos = positions[closingIndex]; // Pega a posição de destino
 
     if (centerCard) {
         centerCard.classList.remove('visible');
@@ -272,8 +327,13 @@ function changePhoto(newIndex) {
     const oldIndex = currentIndex;
     const centerCard = document.querySelector('.center-polaroid');
     
-    const oldPos = photoPositions[oldIndex];
-    const newPos = photoPositions[newIndex];
+    // Define qual array de posições usar
+    const positions = isStarMode ? starPhotoPositions : photoPositions;
+    const oldPos = positions[oldIndex];
+    const newPos = positions[newIndex];
+    
+    // Adiciona prefixo "e" se estiver em modo estrela
+    const newPhotoPath = isStarMode ? `fotos/e${newIndex + 1}.jpg` : photos[newIndex];
 
     // FASE 1: Manda a velha embora
     if (centerCard) {
@@ -295,7 +355,7 @@ function changePhoto(newIndex) {
 
         const newCenterCard = document.createElement('div');
         newCenterCard.className = 'polaroid center-polaroid';
-        newCenterCard.innerHTML = `<img src="${photos[newIndex]}" alt="Foto central" class="polaroid-img">`;
+        newCenterCard.innerHTML = `<img src="${newPhotoPath}" alt="Foto central" class="polaroid-img">`;
         newCenterCard.dataset.index = newIndex;
         newCenterCard.addEventListener('click', closeDetail);
 
