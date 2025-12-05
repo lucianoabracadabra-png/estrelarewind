@@ -1,7 +1,7 @@
 // ============================================
 // VARIÁVEIS GLOBAIS
 // ============================================
-const NUM_PHOTOS = 8;
+const NUM_PHOTOS = 12;
 let currentIndex = -1;
 let photos = [];
 let photoPositions = [];
@@ -434,4 +434,5 @@ counterSurface.addEventListener('click', (e) => {
 // ============================================
 generatePositions();
 initScatteredPhotos(); // Gera as fotos UMA única vez
+
 updateScatteredVisibility(); // Aplica estado inicial
