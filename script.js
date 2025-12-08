@@ -6,10 +6,14 @@ let photos = [];
 let estrelaPhotos = [];
 let photoPositions = [];
 let starPhotoPositions = [];
+let selectedBancadaIndices = []; // Indices das 100 fotos selecionadas para a bancada
 let isAnimating = false;
 let isStarMode = false;
 let NUM_PHOTOS = 0;
 let NUM_ESTRELA = 0;
+let isGalleryDetailMode = false;
+
+
 
 // ============================================
 // DETECTAR FOTOS NA PASTA
@@ -26,7 +30,7 @@ async function loadPhotos() {
         let estrelaCount = 0;
         
         // Cria imagens de teste para verificar
-        for (let i = 1; i <= 20; i++) {
+        for (let i = 1; i <= 999; i++) {
             const img = new Image();
             img.src = `fotos/${i}.jpg`;
             
@@ -112,14 +116,46 @@ const counter = document.getElementById('counter');
 // INICIALIZAÇÃO DE POSIÇÕES
 // ============================================
 function generatePositions() {
-    // Gera posições para Inove (baseado na quantidade real)
-    photoPositions = photos.map((photo, idx) => {
-        const angle = (idx / photos.length) * Math.PI * 2 + Math.random() * 0.5;
-        const distance = 300 + Math.random() * 250;
-        const x = Math.cos(angle) * distance;
-        const y = Math.sin(angle) * distance;
+    // Função auxiliar para gerar posição aleatória evitando o centro
+    const getRandomPosition = () => {
+        let x, y, distance;
+        const centerX = 0;
+        const centerY = 0;
+        const minDistanceFromCenter = 250; // Distância mínima do centro
+        const maxDistance = 450; // Máxima distância do centro
+        
+        // Gera posição até estar fora da zona do centro
+        do {
+            x = (Math.random() - 0.5) * 1300; // Largura +10% em cada lado (900 * 1.1)
+            y = (Math.random() - 0.5) * 700; // Altura +10% em cada lado (900 * 1.1)
+            distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+        } while (distance < minDistanceFromCenter);
+        
+        return { x, y };
+    };
+
+    // Seleciona aleatoriamente 100 fotos do total para a bancada Inove
+    const maxPhotosToShow = 100;
+    selectedBancadaIndices = [];
+    if (photos.length > maxPhotosToShow) {
+        // Se tem mais de 100 fotos, seleciona 100 aleatoriamente
+        const allIndices = Array.from({ length: photos.length }, (_, i) => i);
+        for (let i = allIndices.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [allIndices[i], allIndices[j]] = [allIndices[j], allIndices[i]];
+        }
+        selectedBancadaIndices.push(...allIndices.slice(0, maxPhotosToShow));
+    } else {
+        // Se tem 100 ou menos, usa todas
+        selectedBancadaIndices.push(...Array.from({ length: photos.length }, (_, i) => i));
+    }
+
+    // Gera posições para Inove (apenas as 100 selecionadas aleatoriamente)
+    photoPositions = new Array(photos.length);
+    selectedBancadaIndices.forEach((originalIdx) => {
+        const { x, y } = getRandomPosition();
         const rotation = -25 + Math.random() * 50;
-        return { x, y, rotation };
+        photoPositions[originalIdx] = { x, y, rotation };
     });
 
     // Gera posições para Estrela (baseado na quantidade real de Estrela)
@@ -129,13 +165,31 @@ function generatePositions() {
             // Se há mais fotos Inove que Estrela, preenche com posições vazias
             return { x: 0, y: 0, rotation: 0 };
         }
-        const angle = (idx / numEstrela) * Math.PI * 2 + Math.random() * 0.5;
-        const distance = 300 + Math.random() * 250;
-        const x = Math.cos(angle) * distance;
-        const y = Math.sin(angle) * distance;
+        const { x, y } = getRandomPosition();
         const rotation = -25 + Math.random() * 50;
         return { x, y, rotation };
     });
+}
+
+// ============================================
+// FUNÇÃO AUXILIAR - GERAR VERSÃO OTIMIZADA
+// ============================================
+// ============================================
+// FUNÇÃO AUXILIAR - GERAR VERSÃO OTIMIZADA
+// ============================================
+function getOptimizedPhotoPath(originalPath, quality = 'low') {
+    // VERIFICAÇÃO: Se for foto da Estrela (contém '/e'), retorna a original sempre.
+    // O padrão de nome é "fotos/e1.jpg", então verificamos se tem "/e"
+    if (originalPath.includes('/e')) {
+        return originalPath;
+    }
+
+    // Na bancada (Inove), usa versão com menor qualidade
+    // Formato: fotos/1.jpg -> fotos/1-low.jpg (ou pode ser 1-thumb.jpg)
+    if (quality === 'low') {
+        return originalPath.replace(/\.jpg$/i, '-low.jpg');
+    }
+    return originalPath;
 }
 
 // ============================================
@@ -145,19 +199,21 @@ function initScatteredPhotos() {
     counterSurface.innerHTML = '';
     const positions = isStarMode ? starPhotoPositions : photoPositions;
     
-    // Define quantas fotos mostrar
-    const numToShow = isStarMode ? NUM_ESTRELA : NUM_PHOTOS;
+    // Para Inove, mostra apenas as 100 selecionadas aleatoriamente
+    // Para Estrela, mostra todas
+    const indicesToShow = isStarMode ? Array.from({ length: NUM_ESTRELA }, (_, i) => i) : selectedBancadaIndices;
     
     photos.forEach((photo, idx) => {
-        // Pula fotos que não existem no ambiente atual
-        if (idx >= numToShow) {
+        // Verifica se este índice deve ser mostrado na bancada
+        if (!indicesToShow.includes(idx)) {
             return;
         }
         
         const photoPath = isStarMode ? `fotos/e${idx + 1}.jpg` : photo;
+        const optimizedPath = getOptimizedPhotoPath(photoPath, 'low'); // Usa versão otimizada (30% qualidade)
         const polaroid = document.createElement('div');
         polaroid.className = 'polaroid scattered-polaroid';
-        polaroid.innerHTML = `<img src="${photoPath}" alt="Foto ${idx + 1}" class="polaroid-img">`;
+        polaroid.innerHTML = `<img src="${optimizedPath}" alt="Foto ${idx + 1}" class="polaroid-img">`;
         polaroid.dataset.index = idx;
         
         const pos = positions[idx];
@@ -209,6 +265,18 @@ function updateScatteredVisibility() {
 }
 
 // ============================================
+// FUNÇÃO AUXILIAR - OBTER POSIÇÃO (BANCADA OU CENTRO)
+// ============================================
+function getPhotoPosition(idx, positions) {
+    // Se a posição existe (foto está na bancada), retorna
+    if (positions[idx]) {
+        return positions[idx];
+    }
+    // Se não existe, retorna posição do centro (0, 0)
+    return { x: 0, y: 0, rotation: 0 };
+}
+
+// ============================================
 // EVENT LISTENERS - MODO
 // ============================================
 counterBtn.addEventListener('click', () => {
@@ -223,11 +291,16 @@ counterBtn.addEventListener('click', () => {
 galleryBtn.addEventListener('click', () => {
     counterMode.classList.remove('active');
     galleryMode.classList.add('active');
+    
     galleryBtn.classList.add('active');
     counterBtn.classList.remove('active');
     starBtn.classList.remove('active');
+    
+    // RESETAR O MODO: Sempre começa na grade
+    isGalleryDetailMode = false; 
+    
     updateGalleryView();
-    updateScatteredVisibility();
+    // updateScatteredVisibility(); // Não precisa disso na galeria pura
 });
 
 starBtn.addEventListener('click', () => {
@@ -254,46 +327,37 @@ starBtnRight.addEventListener('click', () => {
 });
 
 // ============================================
-// GALERIA - VISUALIZAÇÃO
+// GALERIA - VISUALIZAÇÃO (4 POR LINHA / LINK EXTERNO)
 // ============================================
 function updateGalleryView() {
-    const existingCenter = document.querySelector('.center-polaroid');
-    if (existingCenter) existingCenter.remove();
-
     galleryGrid.innerHTML = '';
-    if (currentIndex === -1) currentIndex = 0;
+    
+    // Remove qualquer classe antiga e garante a classe de grid
+    galleryGrid.className = 'gallery-grid'; 
 
-    // Define quantas fotos tem no ambiente atual
     const numFotos = isStarMode ? NUM_ESTRELA : NUM_PHOTOS;
     
-    // Se o índice atual é maior que o máximo, reseta
-    if (currentIndex >= numFotos) {
-        currentIndex = 0;
+    for (let i = 0; i < numFotos; i++) {
+        // Caminho da foto original (para o link)
+        const originalPath = isStarMode ? `fotos/e${i + 1}.jpg` : photos[i];
+        
+        // Caminho da miniatura (para exibir na tela sem travar)
+        const thumbPath = getOptimizedPhotoPath(originalPath, 'low');
+        
+        // Cria o link
+        const link = document.createElement('a');
+        link.className = 'gallery-item-link';
+        link.href = originalPath;  // Abre a original
+        link.target = '_blank';    // Nova aba
+        
+        // Monta o HTML: Imagem (sem height fixo) + Número
+        link.innerHTML = `
+            <img src="${thumbPath}" class="gallery-catalog-img" loading="lazy" alt="Foto ${i + 1}">
+            <span class="gallery-number">#${i + 1}</span>
+        `;
+        
+        galleryGrid.appendChild(link);
     }
-
-    const prevIndex = (currentIndex - 1 + numFotos) % numFotos;
-    const nextIndex = (currentIndex + 1) % numFotos;
-
-    const createGalleryCard = (index, type) => {
-        const div = document.createElement('div');
-        div.className = `polaroid ${type}`;
-        const photoPath = isStarMode ? `fotos/e${index + 1}.jpg` : photos[index];
-        div.innerHTML = `<img src="${photoPath}" class="polaroid-img">`;
-        div.addEventListener('click', () => {
-            if(type === 'current') {
-                counterBtn.click();
-            } else {
-                currentIndex = index;
-                updateGalleryView();
-                updateScatteredVisibility();
-            }
-        });
-        return div;
-    };
-
-    galleryGrid.appendChild(createGalleryCard(prevIndex, ''));
-    galleryGrid.appendChild(createGalleryCard(currentIndex, 'current'));
-    galleryGrid.appendChild(createGalleryCard(nextIndex, ''));
 }
 
 // ============================================
@@ -305,7 +369,7 @@ function openDetail(idx) {
 
     currentIndex = idx;
     const positions = isStarMode ? starPhotoPositions : photoPositions;
-    const pos = positions[idx];
+    const pos = getPhotoPosition(idx, positions);
     const photoPath = isStarMode ? `fotos/e${idx + 1}.jpg` : photos[idx];
 
     updateScatteredVisibility();
@@ -346,7 +410,7 @@ function closeDetail() {
     const centerCard = document.querySelector('.center-polaroid');
     const closingIndex = currentIndex;
     const positions = isStarMode ? starPhotoPositions : photoPositions;
-    const pos = positions[closingIndex];
+    const pos = getPhotoPosition(closingIndex, positions);
 
     if (centerCard) {
         centerCard.classList.remove('visible');
@@ -373,8 +437,8 @@ function changePhoto(newIndex) {
     const oldIndex = currentIndex;
     const centerCard = document.querySelector('.center-polaroid');
     const positions = isStarMode ? starPhotoPositions : photoPositions;
-    const oldPos = positions[oldIndex];
-    const newPos = positions[newIndex];
+    const oldPos = getPhotoPosition(oldIndex, positions);
+    const newPos = getPhotoPosition(newIndex, positions);
     const newPhotoPath = isStarMode ? `fotos/e${newIndex + 1}.jpg` : photos[newIndex];
 
     if (centerCard) {
@@ -454,6 +518,17 @@ document.addEventListener('keydown', (e) => {
 counterSurface.addEventListener('click', (e) => {
     if (currentIndex !== -1 && e.target === counterSurface) {
         closeDetail();
+    }
+});
+
+// ============================================
+// FECHAR GALERIA AO CLICAR FORA
+// ============================================
+galleryMode.addEventListener('click', (e) => {
+    // Verifica se o clique NÃO foi em um link ou imagem da galeria
+    if (!e.target.closest('.gallery-item-link')) {
+        // Simula um clique no botão "Bancada" para voltar
+        counterBtn.click();
     }
 });
 

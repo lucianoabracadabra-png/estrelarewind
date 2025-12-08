@@ -1,4 +1,66 @@
 /* ============================================
+   SOBREPOSIÇÃO DA GALERIA (OVERLAY)
+   ============================================ */
+
+/* 1. A BANCADA (Fica sempre no fundo) */
+#counterMode {
+    /* Força a bancada a estar sempre renderizada, mesmo sem a classe active */
+    display: block !important; 
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1; /* Camada base */
+    transition: filter 0.5s ease, transform 0.5s ease;
+}
+
+/* Quando a bancada perde o 'active' (significa que a galeria abriu),
+   nós a empurramos para o fundo visualmente */
+#counterMode:not(.active) {
+    filter: blur(2px) grayscale(40%); /* Desfoca bastante e tira um pouco a cor */
+    transform: scale(0.95); /* Dá um leve zoom out para dar profundidade */
+    pointer-events: none; /* Impede clicar nas polaroids enquanto a galeria tá aberta */
+}
+
+/* 2. A GALERIA (Vem por cima) */
+#galleryMode {
+    /* Garante que o bloco existe, mas controlamos a visibilidade com opacity */
+    display: block !important; 
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2000; /* Z-index bem alto para ficar acima de tudo */
+    
+    
+    /* Estado inicial (escondida) */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    
+    /* Permite rolar a galeria se tiver muitas fotos */
+    overflow-y: auto;
+    padding-top: 80px; /* Espaço para não colar no topo */
+}
+
+/* Quando a galeria ganha a classe active via JS */
+#galleryMode.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Ajuste no Grid para ele centralizar direitinho no overlay */
+.gallery-grid {
+    width: 80%;
+    max-width: 1200px;
+    margin: 0 auto 75px auto;
+    /* Seus estilos de grid existentes continuam aqui... */
+}
+
+
+/* ============================================
    ESTILOS GERAIS
    ============================================ */
 * {
@@ -160,57 +222,92 @@ body {
 }
 
 /* ============================================
-   MODO GALERIA
+   MODO GALERIA - FUNDO BLUR (VIDRO)
    ============================================ */
 .gallery-mode {
     display: none;
     position: fixed;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
     width: 100%;
     height: 100%;
     z-index: 600;
-    background: rgba(255, 255, 255, 0);
-    padding: 40px 20px;
-    pointer-events: none;
+    
+    /* MÁGICA DO BLUR AQUI: */
+    /* Fundo preto com 15% de opacidade (quase invisível) */
+    background: rgba(0, 0, 0, 0.15); 
+    /* Aplica o desfoque no que está ATRÁS da galeria */
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px); /* Para funcionar no Safari/iPhone */
+    
+    padding-top: 80px;
+    overflow-y: auto;
 }
 
 .gallery-mode.active {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-}
-
-.gallery-grid {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 40px;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-}
-
-.gallery-grid .polaroid {
-    width: 280px;
-    height: auto;
-    aspect-ratio: 880 / 1056;
-    opacity: 0.5;
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    display: block;
     pointer-events: auto;
 }
 
-.gallery-grid .polaroid.current {
-    width: 440px;
-    opacity: 1;
-    transform: scale(1);
+/* Resto da Grid (sem alterações estruturais, apenas mantendo) */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    width: 100%;
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 20px;
 }
 
-.gallery-grid .polaroid:hover {
-    cursor: pointer;
+.gallery-item-link {
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 0.2s;
+    align-self: start;
+}
+
+.gallery-item-link:hover {
+    transform: scale(1.02);
+    z-index: 10;
+}
+
+.gallery-catalog-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    /* Borda semi-transparente para definir a imagem */
+    border: 1px solid rgba(255,255,255,0.2); 
+}
+
+.gallery-item-link:hover .gallery-catalog-img {
+    border-color: #fff;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.7);
+}
+
+/* NÚMEROS (Reforçados para leitura) */
+.gallery-number {
+    margin-top: 10px;
+    color: #fff; /* Texto branco puro */
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    /* Sombra preta forte ao redor da letra para ler em qualquer fundo */
+}
+
+.gallery-item-link:hover .gallery-number {
+    color: #FF6B6B;
+    text-shadow: none; /* Remove outline ao passar o mouse */
+}
+
+@media (max-width: 768px) {
+    .gallery-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 /* ============================================
@@ -407,6 +504,10 @@ body {
    RESPONSIVO
    ============================================ */
 @media (max-width: 768px) {
+    .gallery-thumbnails {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    
     .center-polaroid {
         width: 300px;
         height: 360px;
