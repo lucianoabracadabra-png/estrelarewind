@@ -2,100 +2,17 @@
 // VARIÁVEIS GLOBAIS
 // ============================================
 let currentIndex = -1;
-let photos = [];
-let estrelaPhotos = [];
-let photoPositions = [];
+let photos = []; // Array de URLs da Inove
+let estrelaPhotos = []; // Array de URLs da Estrela
+let photoPositions = []; // Armazena posições {x, y, rotation}
 let starPhotoPositions = [];
-let selectedBancadaIndices = []; // Indices das 100 fotos selecionadas para a bancada
 let isAnimating = false;
 let isStarMode = false;
-let NUM_PHOTOS = 0;
-let NUM_ESTRELA = 0;
-let isGalleryDetailMode = false;
 
-
-
-// ============================================
-// DETECTAR FOTOS NA PASTA
-// ============================================
-async function loadPhotos() {
-    try {
-        // Lista manual das fotos - você atualiza aqui conforme adiciona
-        const inovePhotos = [];
-        const estrelaPhotos = [];
-        
-        // Tenta carregar fotos testando se existem
-        // Inicia com um número máximo para teste
-        let inoveCount = 0;
-        let estrelaCount = 0;
-        
-        // Cria imagens de teste para verificar
-        for (let i = 1; i <= 999; i++) {
-            const img = new Image();
-            img.src = `fotos/${i}.jpg`;
-            
-            // Se carregar com sucesso, adiciona
-            await new Promise((resolve) => {
-                img.onload = () => {
-                    inovePhotos.push(`fotos/${i}.jpg`);
-                    inoveCount++;
-                    resolve();
-                };
-                img.onerror = () => {
-                    resolve();
-                };
-                // Timeout para não travar
-                setTimeout(resolve, 1000);
-            });
-        }
-        
-        // Mesmo para Estrela
-        for (let i = 1; i <= 20; i++) {
-            const img = new Image();
-            img.src = `fotos/e${i}.jpg`;
-            
-            await new Promise((resolve) => {
-                img.onload = () => {
-                    estrelaPhotos.push(`fotos/e${i}.jpg`);
-                    estrelaCount++;
-                    resolve();
-                };
-                img.onerror = () => {
-                    resolve();
-                };
-                setTimeout(resolve, 1000);
-            });
-        }
-        
-        // Se encontrou fotos Inove
-        if (inovePhotos.length > 0) {
-            photos = inovePhotos;
-            // Guarda as fotos Estrela globalmente
-            window.estrelaPhotos = estrelaPhotos;
-            NUM_PHOTOS = photos.length;
-            NUM_ESTRELA = estrelaPhotos.length;
-            console.log(`✓ Carregadas ${NUM_PHOTOS} fotos Inove:`, inovePhotos);
-            console.log(`✓ Detectadas ${NUM_ESTRELA} fotos Estrela:`, estrelaPhotos);
-            return true;
-        } else {
-            throw new Error('Nenhuma foto encontrada');
-        }
-        
-    } catch (error) {
-        console.error('Erro ao detectar fotos:', error);
-        return false;
-    }
-}
-
-// Fallback: Carregar fotos manualmente se a detecção falhar
-function loadPhotosManual() {
-    photos = [];
-    for (let i = 1; i <= 8; i++) {
-        photos.push(`fotos/${i}.jpg`);
-    }
-    NUM_PHOTOS = photos.length;
-    console.log(`Usando fallback: ${NUM_PHOTOS} fotos Inove`);
-}
+// Configurações de limite para carregamento
+const MAX_SCAN_INOVE = 300; 
+const MAX_SCAN_ESTRELA = 30; 
+const MAX_BANCADA = 100; 
 
 // ============================================
 // ELEMENTOS DO DOM
@@ -113,110 +30,326 @@ const nextBtn = document.getElementById('nextBtn');
 const counter = document.getElementById('counter');
 
 // ============================================
-// INICIALIZAÇÃO DE POSIÇÕES
+// SISTEMA DE CARREGAMENTO PROGRESSIVO
 // ============================================
-function generatePositions() {
-    // Função auxiliar para gerar posição aleatória evitando o centro
-    const getRandomPosition = () => {
-        let x, y, distance;
-        const centerX = 0;
-        const centerY = 0;
-        const minDistanceFromCenter = 250; // Distância mínima do centro
-        const maxDistance = 450; // Máxima distância do centro
-        
-        // Gera posição até estar fora da zona do centro
-        do {
-            x = (Math.random() - 0.5) * 1300; // Largura +10% em cada lado (900 * 1.1)
-            y = (Math.random() - 0.5) * 700; // Altura +10% em cada lado (900 * 1.1)
-            distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
-        } while (distance < minDistanceFromCenter);
-        
-        return { x, y };
-    };
 
-    // Seleciona aleatoriamente 100 fotos do total para a bancada Inove
-    const maxPhotosToShow = 100;
-    selectedBancadaIndices = [];
-    if (photos.length > maxPhotosToShow) {
-        // Se tem mais de 100 fotos, seleciona 100 aleatoriamente
-        const allIndices = Array.from({ length: photos.length }, (_, i) => i);
-        for (let i = allIndices.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [allIndices[i], allIndices[j]] = [allIndices[j], allIndices[i]];
-        }
-        selectedBancadaIndices.push(...allIndices.slice(0, maxPhotosToShow));
-    } else {
-        // Se tem 100 ou menos, usa todas
-        selectedBancadaIndices.push(...Array.from({ length: photos.length }, (_, i) => i));
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
     }
+    return array;
+}
 
-    // Gera posições para Inove (apenas as 100 selecionadas aleatoriamente)
-    photoPositions = new Array(photos.length);
-    selectedBancadaIndices.forEach((originalIdx) => {
-        const { x, y } = getRandomPosition();
-        const rotation = -25 + Math.random() * 50;
-        photoPositions[originalIdx] = { x, y, rotation };
-    });
+function generateRandomPosition() {
+    let x, y, distance;
+    const centerX = 0;
+    const centerY = 0;
+    const minDistanceFromCenter = 250;
+    
+    do {
+        x = (Math.random() - 0.5) * 1300;
+        y = (Math.random() - 0.5) * 700;
+        distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+    } while (distance < minDistanceFromCenter);
+    
+    return { x, y, rotation: -25 + Math.random() * 50 };
+}
 
-    // Gera posições para Estrela (baseado na quantidade real de Estrela)
-    const numEstrela = window.estrelaPhotos ? window.estrelaPhotos.length : NUM_FOTOS;
-    starPhotoPositions = photos.map((photo, idx) => {
-        if (idx >= numEstrela) {
-            // Se há mais fotos Inove que Estrela, preenche com posições vazias
-            return { x: 0, y: 0, rotation: 0 };
-        }
-        const { x, y } = getRandomPosition();
-        const rotation = -25 + Math.random() * 50;
-        return { x, y, rotation };
+function checkImage(url) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ success: true, url: url });
+        img.onerror = () => resolve({ success: false, url: url });
+        img.src = url;
     });
 }
 
-// ============================================
-// FUNÇÃO AUXILIAR - GERAR VERSÃO OTIMIZADA
-// ============================================
-// ============================================
-// FUNÇÃO AUXILIAR - GERAR VERSÃO OTIMIZADA
-// ============================================
-function getOptimizedPhotoPath(originalPath, quality = 'low') {
-    // VERIFICAÇÃO: Se for foto da Estrela (contém '/e'), retorna a original sempre.
-    // O padrão de nome é "fotos/e1.jpg", então verificamos se tem "/e"
-    if (originalPath.includes('/e')) {
-        return originalPath;
-    }
+async function startProgressiveLoading() {
+    let inoveIndices = Array.from({ length: MAX_SCAN_INOVE }, (_, i) => i + 1);
+    inoveIndices = shuffleArray(inoveIndices);
 
-    // Na bancada (Inove), usa versão com menor qualidade
-    // Formato: fotos/1.jpg -> fotos/1-low.jpg (ou pode ser 1-thumb.jpg)
-    if (quality === 'low') {
-        return originalPath.replace(/\.jpg$/i, '-low.jpg');
+    let estrelaIndices = Array.from({ length: MAX_SCAN_ESTRELA }, (_, i) => i + 1);
+    estrelaIndices = shuffleArray(estrelaIndices);
+
+    const processQueue = async (queue, type) => {
+        const batchSize = 10;
+        while (queue.length > 0) {
+            const batch = queue.splice(0, batchSize);
+            const promises = batch.map(idx => {
+                const url = type === 'inove' ? `fotos/${idx}.jpg` : `fotos/e${idx}.jpg`;
+                return checkImage(url).then(result => {
+                    if (result.success) {
+                        registerPhoto(result.url, type);
+                    }
+                });
+            });
+            await Promise.all(promises);
+            await new Promise(r => setTimeout(r, 50));
+        }
+    };
+
+    processQueue(inoveIndices, 'inove');
+    processQueue(estrelaIndices, 'estrela');
+}
+
+function registerPhoto(url, type) {
+    if (type === 'inove') {
+        photos.push(url);
+        if (!isStarMode) addPolaroidToBench(url, photos.length - 1, 'inove');
+    } else {
+        estrelaPhotos.push(url);
+        if (isStarMode) addPolaroidToBench(url, estrelaPhotos.length - 1, 'estrela');
     }
+    updateCounterText();
+}
+
+function addPolaroidToBench(url, arrayIndex, type) {
+    // Se for Inove e já tivermos muitas fotos, para de adicionar ao DOM (mas continua carregando dados)
+    if (type === 'inove' && document.querySelectorAll('.scattered-polaroid:not(.star-item)').length >= MAX_BANCADA) return;
+
+    // Gera e salva posição
+    const pos = generateRandomPosition();
+    if (type === 'inove') photoPositions[arrayIndex] = pos;
+    else starPhotoPositions[arrayIndex] = pos;
+
+    const optimizedPath = getOptimizedPhotoPath(url, 'low');
+    const polaroid = document.createElement('div');
+    polaroid.className = `polaroid scattered-polaroid ${type === 'estrela' ? 'star-item' : ''}`;
+    polaroid.innerHTML = `<img src="${optimizedPath}" alt="Foto" class="polaroid-img">`;
+    polaroid.dataset.index = arrayIndex;
+
+    polaroid.style.left = `calc(50% + ${pos.x}px)`;
+    polaroid.style.top = `calc(50% + ${pos.y}px)`;
+    
+    // Animação de entrada suave (Pop-in)
+    polaroid.style.transform = `translate(-50%, -50%) rotate(${pos.rotation}deg) scale(0)`;
+    polaroid.style.zIndex = Math.floor(Math.random() * 10);
+    
+    requestAnimationFrame(() => {
+        polaroid.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        polaroid.style.transform = `translate(-50%, -50%) rotate(${pos.rotation}deg) scale(1)`;
+    });
+
+    polaroid.addEventListener('click', () => {
+        // Encontra o índice real atual (pois o carregamento é assíncrono)
+        const currentList = isStarMode ? estrelaPhotos : photos;
+        const clickedIndex = currentList.indexOf(url);
+        
+        if (galleryMode.classList.contains('active')) {
+            currentIndex = clickedIndex;
+            updateGalleryView();
+            updateScatteredVisibility();
+        } else {
+            if (currentIndex === -1) {
+                openDetail(clickedIndex);
+            } else if (currentIndex !== clickedIndex) {
+                changePhoto(clickedIndex);
+            }
+        }
+    });
+
+    counterSurface.appendChild(polaroid);
+}
+
+function updateCounterText() {
+    if (currentIndex === -1) {
+        counter.textContent = `Selecione uma foto`;
+    } else {
+        const total = isStarMode ? estrelaPhotos.length : photos.length;
+        counter.textContent = `${currentIndex + 1} / ${total}`;
+    }
+}
+
+function getOptimizedPhotoPath(originalPath, quality = 'low') {
+    if (originalPath.includes('/e')) return originalPath;
+    if (quality === 'low') return originalPath.replace(/\.jpg$/i, '-low.jpg');
     return originalPath;
 }
 
 // ============================================
-// BANCADA - GERAÇÃO INICIAL
+// FUNÇÃO AUXILIAR - POSIÇÃO
 // ============================================
-function initScatteredPhotos() {
-    counterSurface.innerHTML = '';
+function getPhotoPosition(idx, positions) {
+    if (positions[idx]) {
+        return positions[idx];
+    }
+    // Se a posição não existe (ex: clicou na galeria antes de carregar na bancada), gera uma temporária
+    // para a animação não quebrar (vir do centro ou ir para o centro)
+    return { x: 0, y: 0, rotation: 0 };
+}
+
+// ============================================
+// DETALHE E ANIMAÇÃO (RESTAURADOS FIELMENTE)
+// ============================================
+
+function openDetail(idx) {
+    if (isAnimating) return;
+    isAnimating = true;
+
+    currentIndex = idx;
     const positions = isStarMode ? starPhotoPositions : photoPositions;
+    const pos = getPhotoPosition(idx, positions);
+    const photoPath = isStarMode ? estrelaPhotos[idx] : photos[idx];
+
+    updateScatteredVisibility();
+
+    const centerCard = document.createElement('div');
+    centerCard.className = 'polaroid center-polaroid';
+    centerCard.innerHTML = `<img src="${photoPath}" alt="Foto central" class="polaroid-img">`;
+    centerCard.dataset.index = idx;
+    centerCard.addEventListener('click', closeDetail);
+
+    // CONFIGURAÇÃO INICIAL (EXATAMENTE COMO O ORIGINAL)
+    centerCard.style.animation = 'none';
+    centerCard.style.position = 'absolute';
+    centerCard.style.left = '50%';
+    centerCard.style.top = '50%';
+    centerCard.style.zIndex = 100;
+    centerCard.style.transition = 'none';
+    // O segredo está aqui: translate(-50%, -50%) + translate(pos)
+    centerCard.style.transform = `translate(-50%, -50%) translate(${pos.x}px, ${pos.y}px) rotate(${pos.rotation}deg) scale(0.5)`;
+
+    counterSurface.appendChild(centerCard);
+    centerCard.offsetHeight; // Força reflow
+
+    // ANIMAÇÃO PARA O CENTRO
+    centerCard.style.transition = 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    centerCard.classList.add('visible');
+    centerCard.style.transform = `translate(-50%, -50%) translate(0px, 0px) rotate(0deg) scale(1)`;
+
+    setTimeout(() => {
+        isAnimating = false;
+    }, 650);
+}
+
+function closeDetail() {
+    if (isAnimating || currentIndex === -1) return;
+    isAnimating = true;
+
+    const centerCard = document.querySelector('.center-polaroid');
+    const closingIndex = currentIndex;
+    const positions = isStarMode ? starPhotoPositions : photoPositions;
+    const pos = getPhotoPosition(closingIndex, positions);
+
+    if (centerCard) {
+        centerCard.classList.remove('visible');
+        centerCard.style.animation = 'none';
+        centerCard.style.transition = 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        // VOLTA PARA A POSIÇÃO ORIGINAL
+        centerCard.style.transform = `translate(-50%, -50%) translate(${pos.x}px, ${pos.y}px) rotate(${pos.rotation}deg) scale(0.5)`;
+    }
+
+    setTimeout(() => {
+        if (centerCard) centerCard.remove();
+        currentIndex = -1;
+        updateScatteredVisibility();
+        isAnimating = false;
+    }, 600);
+}
+
+function changePhoto(newIndex) {
+    if (isAnimating || currentIndex === -1 || newIndex === currentIndex) return;
+    isAnimating = true;
     
-    // Para Inove, mostra apenas as 100 selecionadas aleatoriamente
-    // Para Estrela, mostra todas
-    const indicesToShow = isStarMode ? Array.from({ length: NUM_ESTRELA }, (_, i) => i) : selectedBancadaIndices;
-    
-    photos.forEach((photo, idx) => {
-        // Verifica se este índice deve ser mostrado na bancada
-        if (!indicesToShow.includes(idx)) {
-            return;
+    const oldIndex = currentIndex;
+    const centerCard = document.querySelector('.center-polaroid');
+    const positions = isStarMode ? starPhotoPositions : photoPositions;
+    const oldPos = getPhotoPosition(oldIndex, positions);
+    const newPos = getPhotoPosition(newIndex, positions);
+    const newPhotoPath = isStarMode ? estrelaPhotos[newIndex] : photos[newIndex];
+
+    // ANIMA O CARTÃO ANTIGO SAINDO
+    if (centerCard) {
+        centerCard.classList.remove('visible');
+        centerCard.style.animation = 'none';
+        centerCard.style.transition = 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        centerCard.style.zIndex = 40;
+        centerCard.style.transform = `translate(-50%, -50%) translate(${oldPos.x}px, ${oldPos.y}px) rotate(${oldPos.rotation}deg) scale(0.5)`;
+    }
+
+    setTimeout(() => {
+        if (centerCard) centerCard.remove();
+        currentIndex = newIndex;
+        updateScatteredVisibility();
+
+        const newCenterCard = document.createElement('div');
+        newCenterCard.className = 'polaroid center-polaroid';
+        newCenterCard.innerHTML = `<img src="${newPhotoPath}" alt="Foto central" class="polaroid-img">`;
+        newCenterCard.dataset.index = newIndex;
+        newCenterCard.addEventListener('click', closeDetail);
+
+        // CONFIGURA O NOVO CARTÃO NA POSIÇÃO DE ORIGEM
+        newCenterCard.style.animation = 'none';
+        newCenterCard.style.position = 'absolute';
+        newCenterCard.style.left = '50%';
+        newCenterCard.style.top = '50%';
+        newCenterCard.style.zIndex = 100;
+        newCenterCard.style.transition = 'none';
+        newCenterCard.style.transform = `translate(-50%, -50%) translate(${newPos.x}px, ${newPos.y}px) rotate(${newPos.rotation}deg) scale(0.5)`;
+
+        counterSurface.appendChild(newCenterCard);
+        newCenterCard.offsetHeight;
+
+        // ANIMA O NOVO CARTÃO PARA O CENTRO
+        newCenterCard.style.transition = 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        newCenterCard.classList.add('visible');
+        newCenterCard.style.transform = `translate(-50%, -50%) translate(0px, 0px) rotate(0deg) scale(1)`;
+
+        setTimeout(() => {
+            isAnimating = false;
+        }, 650);
+    }, 150);
+}
+
+// ============================================
+// CONTROLE DE VISIBILIDADE
+// ============================================
+function updateScatteredVisibility() {
+    const allScattered = document.querySelectorAll('.scattered-polaroid');
+    allScattered.forEach(card => {
+        const idx = parseInt(card.dataset.index);
+        if (idx === currentIndex && currentIndex !== -1) {
+            card.classList.add('hide-for-detail');
+        } else {
+            card.classList.remove('hide-for-detail');
         }
+    });
+    updateCounterText();
+    
+    if (currentIndex !== -1) {
+        counterMode.classList.add('detail-view');
+    } else {
+        counterMode.classList.remove('detail-view');
+    }
+}
+
+// ============================================
+// REFRESH DA BANCADA (AO TROCAR DE MODO)
+// ============================================
+function refreshScatteredPhotos() {
+    counterSurface.innerHTML = '';
+    const targetPhotos = isStarMode ? estrelaPhotos : photos;
+    const limit = isStarMode ? targetPhotos.length : Math.min(targetPhotos.length, MAX_BANCADA);
+
+    targetPhotos.forEach((url, idx) => {
+        if (idx >= limit) return;
         
-        const photoPath = isStarMode ? `fotos/e${idx + 1}.jpg` : photo;
-        const optimizedPath = getOptimizedPhotoPath(photoPath, 'low'); // Usa versão otimizada (30% qualidade)
+        let pos;
+        if (isStarMode) {
+            if (!starPhotoPositions[idx]) starPhotoPositions[idx] = generateRandomPosition();
+            pos = starPhotoPositions[idx];
+        } else {
+            if (!photoPositions[idx]) photoPositions[idx] = generateRandomPosition();
+            pos = photoPositions[idx];
+        }
+
+        const optimizedPath = getOptimizedPhotoPath(url, 'low');
         const polaroid = document.createElement('div');
         polaroid.className = 'polaroid scattered-polaroid';
-        polaroid.innerHTML = `<img src="${optimizedPath}" alt="Foto ${idx + 1}" class="polaroid-img">`;
+        polaroid.innerHTML = `<img src="${optimizedPath}" alt="Foto" class="polaroid-img">`;
         polaroid.dataset.index = idx;
         
-        const pos = positions[idx];
         polaroid.style.left = `calc(50% + ${pos.x}px)`;
         polaroid.style.top = `calc(50% + ${pos.y}px)`;
         polaroid.style.transform = `translate(-50%, -50%) rotate(${pos.rotation}deg)`;
@@ -238,46 +371,11 @@ function initScatteredPhotos() {
 
         counterSurface.appendChild(polaroid);
     });
+    updateScatteredVisibility();
 }
 
 // ============================================
-// CONTROLE DE VISIBILIDADE
-// ============================================
-function updateScatteredVisibility() {
-    const allScattered = document.querySelectorAll('.scattered-polaroid');
-    allScattered.forEach(card => {
-        const idx = parseInt(card.dataset.index);
-        if (idx === currentIndex && currentIndex !== -1) {
-            card.classList.add('hide-for-detail');
-        } else {
-            card.classList.remove('hide-for-detail');
-        }
-    });
-
-    if (currentIndex === -1) {
-        counter.textContent = `Selecione uma foto`;
-        counterMode.classList.remove('detail-view');
-    } else {
-        const numFotos = isStarMode ? NUM_ESTRELA : NUM_PHOTOS;
-        counter.textContent = `${currentIndex + 1} / ${numFotos}`;
-        counterMode.classList.add('detail-view');
-    }
-}
-
-// ============================================
-// FUNÇÃO AUXILIAR - OBTER POSIÇÃO (BANCADA OU CENTRO)
-// ============================================
-function getPhotoPosition(idx, positions) {
-    // Se a posição existe (foto está na bancada), retorna
-    if (positions[idx]) {
-        return positions[idx];
-    }
-    // Se não existe, retorna posição do centro (0, 0)
-    return { x: 0, y: 0, rotation: 0 };
-}
-
-// ============================================
-// EVENT LISTENERS - MODO
+// BOTÕES E INTERFACE
 // ============================================
 counterBtn.addEventListener('click', () => {
     counterMode.classList.add('active');
@@ -291,19 +389,24 @@ counterBtn.addEventListener('click', () => {
 galleryBtn.addEventListener('click', () => {
     counterMode.classList.remove('active');
     galleryMode.classList.add('active');
-    
     galleryBtn.classList.add('active');
     counterBtn.classList.remove('active');
-    starBtn.classList.remove('active');
     
-    // RESETAR O MODO: Sempre começa na grade
-    isGalleryDetailMode = false; 
-    
+    // Na galeria, podemos querer ordenar visualmente
+    if (!isStarMode) {
+        photos.sort((a, b) => {
+            const numA = parseInt(a.match(/\d+/)[0]);
+            const numB = parseInt(b.match(/\d+/)[0]);
+            return numA - numB;
+        });
+    }
     updateGalleryView();
-    // updateScatteredVisibility(); // Não precisa disso na galeria pura
 });
 
-starBtn.addEventListener('click', () => {
+starBtn.addEventListener('click', handleModeToggle);
+starBtnRight.addEventListener('click', handleModeToggle);
+
+function handleModeToggle() {
     isStarMode = !isStarMode;
     if (isStarMode) {
         starBtn.classList.remove('active');
@@ -312,245 +415,89 @@ starBtn.addEventListener('click', () => {
         starBtn.classList.add('active');
         starBtnRight.classList.remove('active');
     }
+    currentIndex = -1;
     if (counterMode.classList.contains('active')) {
-        initScatteredPhotos();
-        updateScatteredVisibility();
-    } else if (galleryMode.classList.contains('active')) {
-        currentIndex = -1;
+        refreshScatteredPhotos();
+    } else {
         updateGalleryView();
-        updateScatteredVisibility();
     }
-});
-
-starBtnRight.addEventListener('click', () => {
-    starBtn.click();
-});
+}
 
 // ============================================
-// GALERIA - VISUALIZAÇÃO (4 POR LINHA / LINK EXTERNO)
+// GALERIA
 // ============================================
 function updateGalleryView() {
     galleryGrid.innerHTML = '';
-    
-    // Remove qualquer classe antiga e garante a classe de grid
     galleryGrid.className = 'gallery-grid'; 
-
-    const numFotos = isStarMode ? NUM_ESTRELA : NUM_PHOTOS;
+    const currentList = isStarMode ? estrelaPhotos : photos;
     
-    for (let i = 0; i < numFotos; i++) {
-        // Caminho da foto original (para o link)
-        const originalPath = isStarMode ? `fotos/e${i + 1}.jpg` : photos[i];
-        
-        // Caminho da miniatura (para exibir na tela sem travar)
-        const thumbPath = getOptimizedPhotoPath(originalPath, 'low');
-        
-        // Cria o link
+    currentList.forEach((url, i) => {
+        const thumbPath = getOptimizedPhotoPath(url, 'low');
+        const match = url.match(/(\d+)\.jpg/);
+        const displayNum = match ? match[1] : (i + 1);
+
         const link = document.createElement('a');
         link.className = 'gallery-item-link';
-        link.href = originalPath;  // Abre a original
-        link.target = '_blank';    // Nova aba
-        
-        // Monta o HTML: Imagem (sem height fixo) + Número
+        link.href = url;
+        link.target = '_blank';
         link.innerHTML = `
-            <img src="${thumbPath}" class="gallery-catalog-img" loading="lazy" alt="Foto ${i + 1}">
-            <span class="gallery-number">#${i + 1}</span>
+            <img src="${thumbPath}" class="gallery-catalog-img" loading="lazy" alt="Foto">
+            <span class="gallery-number">#${displayNum}</span>
         `;
-        
         galleryGrid.appendChild(link);
-    }
+    });
 }
 
 // ============================================
-// DETALHE - ABRIR
-// ============================================
-function openDetail(idx) {
-    if (isAnimating) return;
-    isAnimating = true;
-
-    currentIndex = idx;
-    const positions = isStarMode ? starPhotoPositions : photoPositions;
-    const pos = getPhotoPosition(idx, positions);
-    const photoPath = isStarMode ? `fotos/e${idx + 1}.jpg` : photos[idx];
-
-    updateScatteredVisibility();
-
-    const centerCard = document.createElement('div');
-    centerCard.className = 'polaroid center-polaroid';
-    centerCard.innerHTML = `<img src="${photoPath}" alt="Foto central" class="polaroid-img">`;
-    centerCard.dataset.index = idx;
-    centerCard.addEventListener('click', closeDetail);
-
-    centerCard.style.animation = 'none';
-    centerCard.style.position = 'absolute';
-    centerCard.style.left = '50%';
-    centerCard.style.top = '50%';
-    centerCard.style.zIndex = 100;
-    centerCard.style.transition = 'none';
-    centerCard.style.transform = `translate(-50%, -50%) translate(${pos.x}px, ${pos.y}px) rotate(${pos.rotation}deg) scale(0.5)`;
-
-    counterSurface.appendChild(centerCard);
-    centerCard.offsetHeight;
-
-    centerCard.style.transition = 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
-    centerCard.classList.add('visible');
-    centerCard.style.transform = `translate(-50%, -50%) translate(0px, 0px) rotate(0deg) scale(1)`;
-
-    setTimeout(() => {
-        isAnimating = false;
-    }, 650);
-}
-
-// ============================================
-// DETALHE - FECHAR
-// ============================================
-function closeDetail() {
-    if (isAnimating || currentIndex === -1) return;
-    isAnimating = true;
-
-    const centerCard = document.querySelector('.center-polaroid');
-    const closingIndex = currentIndex;
-    const positions = isStarMode ? starPhotoPositions : photoPositions;
-    const pos = getPhotoPosition(closingIndex, positions);
-
-    if (centerCard) {
-        centerCard.classList.remove('visible');
-        centerCard.style.animation = 'none';
-        centerCard.style.transition = 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        centerCard.style.transform = `translate(-50%, -50%) translate(${pos.x}px, ${pos.y}px) rotate(${pos.rotation}deg) scale(0.5)`;
-    }
-
-    setTimeout(() => {
-        if (centerCard) centerCard.remove();
-        currentIndex = -1;
-        updateScatteredVisibility();
-        isAnimating = false;
-    }, 600);
-}
-
-// ============================================
-// TROCAR FOTO
-// ============================================
-function changePhoto(newIndex) {
-    if (isAnimating || currentIndex === -1 || newIndex === currentIndex) return;
-    isAnimating = true;
-    
-    const oldIndex = currentIndex;
-    const centerCard = document.querySelector('.center-polaroid');
-    const positions = isStarMode ? starPhotoPositions : photoPositions;
-    const oldPos = getPhotoPosition(oldIndex, positions);
-    const newPos = getPhotoPosition(newIndex, positions);
-    const newPhotoPath = isStarMode ? `fotos/e${newIndex + 1}.jpg` : photos[newIndex];
-
-    if (centerCard) {
-        centerCard.classList.remove('visible');
-        centerCard.style.animation = 'none';
-        centerCard.style.transition = 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        centerCard.style.zIndex = 40;
-        centerCard.style.transform = `translate(-50%, -50%) translate(${oldPos.x}px, ${oldPos.y}px) rotate(${oldPos.rotation}deg) scale(0.5)`;
-    }
-
-    setTimeout(() => {
-        if (centerCard) centerCard.remove();
-        currentIndex = newIndex;
-        updateScatteredVisibility();
-
-        const newCenterCard = document.createElement('div');
-        newCenterCard.className = 'polaroid center-polaroid';
-        newCenterCard.innerHTML = `<img src="${newPhotoPath}" alt="Foto central" class="polaroid-img">`;
-        newCenterCard.dataset.index = newIndex;
-        newCenterCard.addEventListener('click', closeDetail);
-
-        newCenterCard.style.animation = 'none';
-        newCenterCard.style.position = 'absolute';
-        newCenterCard.style.left = '50%';
-        newCenterCard.style.top = '50%';
-        newCenterCard.style.zIndex = 100;
-        newCenterCard.style.transition = 'none';
-        newCenterCard.style.transform = `translate(-50%, -50%) translate(${newPos.x}px, ${newPos.y}px) rotate(${newPos.rotation}deg) scale(0.5)`;
-
-        counterSurface.appendChild(newCenterCard);
-        newCenterCard.offsetHeight;
-
-        newCenterCard.style.transition = 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        newCenterCard.classList.add('visible');
-        newCenterCard.style.transform = `translate(-50%, -50%) translate(0px, 0px) rotate(0deg) scale(1)`;
-
-        setTimeout(() => {
-            isAnimating = false;
-        }, 650);
-    }, 150);
-}
-
-// ============================================
-// NAVEGAÇÃO
+// NAVEGAÇÃO E TECLADO
 // ============================================
 prevBtn.addEventListener('click', () => {
     if (currentIndex === -1) return;
-    const numFotos = isStarMode ? NUM_ESTRELA : NUM_PHOTOS;
-    const newIndex = (currentIndex - 1 + numFotos) % numFotos;
+    const total = isStarMode ? estrelaPhotos.length : photos.length;
+    if (total === 0) return;
+    const newIndex = (currentIndex - 1 + total) % total;
     changePhoto(newIndex);
 });
 
 nextBtn.addEventListener('click', () => {
     if (currentIndex === -1) return;
-    const numFotos = isStarMode ? NUM_ESTRELA : NUM_PHOTOS;
-    const newIndex = (currentIndex + 1) % numFotos;
+    const total = isStarMode ? estrelaPhotos.length : photos.length;
+    if (total === 0) return;
+    const newIndex = (currentIndex + 1) % total;
     changePhoto(newIndex);
 });
 
 document.addEventListener('keydown', (e) => {
     if (currentIndex !== -1) {
-        const numFotos = isStarMode ? NUM_ESTRELA : NUM_PHOTOS;
+        const total = isStarMode ? estrelaPhotos.length : photos.length;
+        if (total === 0) return;
         if (e.key === 'ArrowLeft') {
-            const newIndex = (currentIndex - 1 + numFotos) % numFotos;
+            const newIndex = (currentIndex - 1 + total) % total;
             changePhoto(newIndex);
         }
         if (e.key === 'ArrowRight') {
-            const newIndex = (currentIndex + 1) % numFotos;
+            const newIndex = (currentIndex + 1) % total;
             changePhoto(newIndex);
         }
-        if (e.key === 'Escape') {
-            closeDetail();
-        }
+        if (e.key === 'Escape') closeDetail();
     }
 });
 
 counterSurface.addEventListener('click', (e) => {
-    if (currentIndex !== -1 && e.target === counterSurface) {
-        closeDetail();
-    }
+    if (currentIndex !== -1 && e.target === counterSurface) closeDetail();
 });
 
-// ============================================
-// FECHAR GALERIA AO CLICAR FORA
-// ============================================
 galleryMode.addEventListener('click', (e) => {
-    // Verifica se o clique NÃO foi em um link ou imagem da galeria
-    if (!e.target.closest('.gallery-item-link')) {
-        // Simula um clique no botão "Bancada" para voltar
-        counterBtn.click();
-    }
+    if (!e.target.closest('.gallery-item-link')) counterBtn.click();
 });
 
 // ============================================
 // INICIALIZAÇÃO
 // ============================================
-async function init() {
-    // Tenta carregar fotos dinamicamente
-    const loaded = await loadPhotos();
-    
-    // Se falhar, usa fallback
-    if (!loaded) {
-        loadPhotosManual();
-    }
-    
-    // Inicia o sistema
-    generatePositions();
-    initScatteredPhotos();
-    updateScatteredVisibility();
+function init() {
+    startProgressiveLoading();
 }
 
-// Inicia quando o DOM estiver pronto
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
