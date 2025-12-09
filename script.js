@@ -10,8 +10,8 @@ let isAnimating = false;
 let isStarMode = false;
 
 // Configurações de limite para carregamento
-const MAX_SCAN_INOVE = 300; 
-const MAX_SCAN_ESTRELA = 30; 
+const MAX_SCAN_INOVE = 602; 
+const MAX_SCAN_ESTRELA = 20; 
 const MAX_BANCADA = 100; 
 
 // ============================================
@@ -502,4 +502,5 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
     init();
+
 }
