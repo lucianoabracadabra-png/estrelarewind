@@ -14,6 +14,9 @@ const MAX_SCAN_INOVE = 602;
 const MAX_SCAN_ESTRELA = 20; 
 const MAX_BANCADA = 100; 
 
+const skipInoveIndices = [18,57,76,85,99,153,154]; // Exemplo: pular as imagens com índices 5, 10, 15 e 20
+const skipEstrelaIndices = [0]; // Exemplo: pular as imagens com índices 2, 4 e 6
+
 // ============================================
 // ELEMENTOS DO DOM
 // ============================================
@@ -65,6 +68,7 @@ function checkImage(url) {
     });
 }
 
+
 async function startProgressiveLoading() {
     let inoveIndices = Array.from({ length: MAX_SCAN_INOVE }, (_, i) => i + 1);
     inoveIndices = shuffleArray(inoveIndices);
@@ -72,11 +76,20 @@ async function startProgressiveLoading() {
     let estrelaIndices = Array.from({ length: MAX_SCAN_ESTRELA }, (_, i) => i + 1);
     estrelaIndices = shuffleArray(estrelaIndices);
 
-    const processQueue = async (queue, type) => {
+    // Array de índices a serem ignorados
+
+
+    const processQueue = async (queue, type, skipIndices) => {
         const batchSize = 10;
         while (queue.length > 0) {
             const batch = queue.splice(0, batchSize);
             const promises = batch.map(idx => {
+                // Verifica se o índice deve ser pulado
+                if (skipIndices && skipIndices.includes(idx)) {
+                    console.log(`Pulando imagem ${idx} do tipo ${type}`);
+                    return Promise.resolve(); // Retorna uma Promise resolvida para pular este índice
+                }
+
                 const url = type === 'inove' ? `fotos/${idx}.jpg` : `fotos/e${idx}.jpg`;
                 return checkImage(url).then(result => {
                     if (result.success) {
@@ -89,9 +102,10 @@ async function startProgressiveLoading() {
         }
     };
 
-    processQueue(inoveIndices, 'inove');
-    processQueue(estrelaIndices, 'estrela');
+    processQueue(inoveIndices, 'inove', skipInoveIndices);
+    processQueue(estrelaIndices, 'estrela', skipEstrelaIndices);
 }
+
 
 function registerPhoto(url, type) {
     if (type === 'inove') {
@@ -504,3 +518,4 @@ if (document.readyState === 'loading') {
     init();
 
 }
+
